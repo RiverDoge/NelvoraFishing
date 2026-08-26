@@ -27,7 +27,8 @@
             margin: 0; height: 100vh; display: flex; overflow: hidden;
         }
         
-        .app-container { display: flex; width: 100vw; height: 100vh; }
+        .app-container { display: flex; width: 100vw; height: 100vh; filter: blur(0px); transition: filter 0.3s; }
+        .app-container.blurred { filter: blur(5px); pointer-events: none; }
         
         /* Left Sidebar */
         .left-sidebar {
@@ -119,10 +120,12 @@
         .fish-card { 
             background-color: var(--panel-bg); border: 2px solid var(--border); border-radius: 8px; 
             padding: 24px 12px 12px 12px; display: flex; flex-direction: column; align-items: center; 
-            text-align: center; position: relative; cursor: pointer; transition: all 0.2s;
+            text-align: center; position: relative; transition: all 0.2s;
         }
-        .fish-card:hover { transform: translateY(-2px); }
-        .fish-card.uncaught { filter: grayscale(100%) brightness(0.6); border-color: var(--border) !important; box-shadow: none !important; }
+        .fish-card.caught { cursor: pointer; }
+        .fish-card.caught:hover { transform: translateY(-2px); box-shadow: 0 4px 10px rgba(0,0,0,0.3); }
+        
+        .fish-card.uncaught { filter: grayscale(100%) brightness(0.6); border-color: var(--border) !important; box-shadow: none !important; cursor: default; }
         .fish-card.uncaught .fish-icon { background-color: transparent; border: 1px dashed var(--text-muted); }
         
         .fish-name { font-weight: bold; font-size: 0.85em; margin-bottom: 10px; line-height: 1.1; z-index: 2; }
@@ -173,6 +176,10 @@
         .odds-row { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; align-items: center; }
         .odds-row:hover { background-color: var(--indent-bg); }
 
+        /* Startup Modal (Unclosable) */
+        #startup-modal { display: none; position: fixed; z-index: 9999; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.85); backdrop-filter: blur(8px); }
+        #startup-modal .modal-content { margin: 15% auto; text-align: center; width: 400px; padding: 40px; box-shadow: 0 10px 40px rgba(0,0,0,0.8); }
+
         .border-Common { border-color: var(--r-common) !important; }
         .border-Uncommon { border-color: var(--r-uncommon) !important; }
         .border-Rare { border-color: var(--r-rare) !important; }
@@ -181,7 +188,7 @@
         .tc-Common { color: var(--r-common); } .tc-Uncommon { color: var(--r-uncommon); }
         .tc-Rare { color: var(--r-rare); } .tc-VeryRare { color: var(--r-veryrare); } .tc-Legendary { color: var(--r-legendary); }
 
-        /* Popup */
+        /* Popups */
         #catch-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background-color: rgba(30, 31, 34, 0.95); backdrop-filter: blur(8px); padding: 30px; border-radius: 12px; border: 2px solid var(--border); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 3000; }
         #catch-popup.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
         .popup-icon { font-size: 4em; margin-bottom: 10px; }
@@ -190,12 +197,13 @@
 </head>
 <body>
 
-<div class="app-container">
+<!-- Blur wrapper for startup -->
+<div class="app-container blurred" id="main-app">
     
     <!-- Sidebar -->
     <div class="left-sidebar">
         
-        <h3 id="sidebar-profile-name" style="text-align: center; margin-bottom: -10px; margin-top: 5px; color: var(--text-main);">Player 1</h3>
+        <h3 id="sidebar-profile-name" style="text-align: center; margin-bottom: -10px; margin-top: 5px; color: var(--text-main);"></h3>
         
         <div class="portrait-box" id="portrait-preview" onclick="document.getElementById('portrait-upload').click()">
             <span id="portrait-text">Click to add picture</span>
@@ -315,9 +323,11 @@
                     <label>Bait Selection</label>
                     <select id="sim-bait">
                         <option value="none">No Bait</option>
-                        <option value="worms">Worms (+Com)</option>
+                        <option value="worms">Worms (+Common)</option>
+                        <option value="minnow">Minnow (+Uncommon)</option>
                         <option value="glowbugs">Glow-bugs (+Rare)</option>
-                        <option value="starshard">Star-shard (+Leg)</option>
+                        <option value="moonsnail">Moon-snail (+Very Rare)</option>
+                        <option value="starshard">Star-shard (+Legendary)</option>
                     </select>
                 </div>
                 <div>
@@ -361,7 +371,26 @@
     </div>
 </div>
 
-<!-- Modals -->
+<!-- Startup Modal -->
+<div id="startup-modal">
+    <div class="modal-content" style="border: 2px solid var(--accent);">
+        <h2 style="color: var(--accent); margin-bottom: 25px;">Welcome to Nelvora Fishing</h2>
+        <p style="color: var(--text-muted); font-size: 0.9em; margin-bottom: 30px;">Create a new character profile or import a previous save to begin fishing!</p>
+        
+        <div style="display: flex; flex-direction: column; gap: 15px;">
+            <button onclick="startupCreateProfile()" style="padding: 12px; font-size: 1em;">Create New Character</button>
+            <div style="display: flex; align-items: center; gap: 10px; margin: 10px 0;">
+                <hr style="flex: 1; border-color: var(--border);">
+                <span style="color: var(--text-muted); font-size: 0.8em;">OR</span>
+                <hr style="flex: 1; border-color: var(--border);">
+            </div>
+            <button onclick="document.getElementById('startup-import-upload').click()" style="background: #66bb6a; padding: 12px; font-size: 1em;">Import Save File (.json)</button>
+            <input type="file" id="startup-import-upload" accept=".json" onchange="importSave(event)" style="display: none;">
+        </div>
+    </div>
+</div>
+
+<!-- Standard Modals -->
 <div id="profile-modal" class="modal">
     <div class="modal-content" style="width: 450px;">
         <span class="close-btn" onclick="closeModal('profile-modal')">&times;</span>
@@ -426,6 +455,29 @@
     </div>
 </div>
 
+<div id="fish-details-modal" class="modal">
+    <div class="modal-content" style="width: 400px; text-align: center;">
+        <span class="close-btn" onclick="closeModal('fish-details-modal')">&times;</span>
+        <div id="fd-icon" style="font-size: 4em; background: var(--indent-bg); border-radius: 8px; width: 100px; height: 100px; display: flex; align-items: center; justify-content: center; margin: 0 auto 15px auto; border: 1px solid var(--border);">🐟</div>
+        <h2 id="fd-name" style="margin-bottom: 5px;">Fish Name</h2>
+        <div id="fd-rarity" style="font-weight: bold; margin-bottom: 15px;">Rarity</div>
+        
+        <div style="display: flex; justify-content: center; gap: 15px; font-size: 0.85em; color: var(--text-muted); margin-bottom: 20px;">
+            <span id="fd-time">☀️ Day</span>
+            <span style="color: var(--border);">|</span>
+            <span id="fd-weather">🌧️ Rain</span>
+        </div>
+        
+        <p id="fd-summary" style="font-size: 0.9em; line-height: 1.5; color: var(--text-main); background: var(--indent-bg); padding: 15px; border-radius: 6px; border: 1px solid var(--border); margin-bottom: 20px;">Summary goes here.</p>
+        
+        <div style="display: flex; justify-content: space-between; font-size: 0.85em; background: var(--bg-color); padding: 10px 15px; border-radius: 6px; border: 1px solid var(--border);">
+            <div><span style="color: var(--text-muted);">First Caught:</span> <strong id="fd-date">Unknown</strong></div>
+            <div><span style="color: var(--text-muted);">Total Caught:</span> <strong id="fd-total">0</strong></div>
+        </div>
+    </div>
+</div>
+
+<!-- Popup Alert -->
 <div id="catch-popup">
     <div class="popup-icon" id="popup-icon">🐟</div>
     <div style="color: var(--accent); font-size: 0.9em; margin-bottom: 5px;">You reeled in a</div>
@@ -443,64 +495,70 @@
 
     const fishData = {
         global: [
-            { name: "Common Carp", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false },
-            { name: "River Loach", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: false },
-            { name: "Minnow", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false },
-            { name: "Bitterling", time: "Any", weather: "Rain", icon: "🐠", rarity: "Common", regional: false },
-            { name: "Sunfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Uncommon", regional: false },
-            { name: "Mudskipper", time: "Any", weather: "Rain", icon: "🦎", rarity: "Uncommon", regional: false },
-            { name: "Crayfish", time: "Night", weather: "Any", icon: "🦐", rarity: "Uncommon", regional: false },
-            { name: "Golden Shiner", time: "Day", weather: "Any", icon: "🐟", rarity: "Rare", regional: false },
-            { name: "Speckled Dace", time: "Any", weather: "Clear", icon: "🐠", rarity: "Rare", regional: false },
-            { name: "Brook Char", time: "Any", weather: "Any", icon: "🐡", rarity: "Rare", regional: false },
-            { name: "Moonlight Eel", time: "Night", weather: "Any", icon: "🐍", rarity: "VeryRare", regional: false },
-            { name: "Starlight Koi", time: "Night", weather: "Any", icon: "✨", rarity: "VeryRare", regional: false }
+            { name: "Common Carp", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false, summary: "A hardy, ubiquitous fish found in almost any body of water." },
+            { name: "River Loach", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: false, summary: "A bottom-dwelling scavenger with sensitive barbels." },
+            { name: "Minnow", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false, summary: "A tiny, silvery schooling fish, often used as bait." },
+            { name: "Bitterling", time: "Any", weather: "Rain", icon: "🐠", rarity: "Common", regional: false, summary: "A small fish known for its slightly bitter taste and iridescent scales." },
+            { name: "Sunfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Uncommon", regional: false, summary: "Brightly colored and aggressively territorial, a favorite among beginners." },
+            { name: "Mudskipper", time: "Any", weather: "Rain", icon: "🦎", rarity: "Uncommon", regional: false, summary: "An amphibious fish that can breathe out of water and 'walk' on mud." },
+            { name: "Crayfish", time: "Night", weather: "Any", icon: "🦐", rarity: "Uncommon", regional: false, summary: "A small freshwater crustacean that hides under rocks." },
+            { name: "Golden Shiner", time: "Day", weather: "Any", icon: "🐟", rarity: "Rare", regional: false, summary: "A flashy fish whose scales are highly valued by jewelers." },
+            { name: "Speckled Dace", time: "Any", weather: "Clear", icon: "🐠", rarity: "Rare", regional: false, summary: "A swift swimmer that thrives in clear, fast-moving currents." },
+            { name: "Brook Char", time: "Any", weather: "Any", icon: "🐡", rarity: "Rare", regional: false, summary: "A beautiful, speckled trout native to cold, pristine waters." },
+            { name: "Moonlight Eel", time: "Night", weather: "Any", icon: "🐍", rarity: "VeryRare", regional: false, summary: "A slippery predator that emits a faint, bioluminescent glow." },
+            { name: "Starlight Koi", time: "Night", weather: "Any", icon: "✨", rarity: "VeryRare", regional: false, summary: "A majestic ornamental fish whose patterns resemble constellations." }
         ],
         regional: {
             "Whispering Lakes": [
-                { name: "Silver Trout", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: true },
-                { name: "Lake Glassfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true },
-                { name: "Ghost Catfish", time: "Night", weather: "Any", icon: "🐡", rarity: "Uncommon", regional: true },
-                { name: "Lake Sturgeon", time: "Any", weather: "Any", icon: "🦈", rarity: "Rare", regional: true },
-                { name: "Whisper-ray", time: "Any", weather: "Rain", icon: "🦇", rarity: "VeryRare", regional: true }
+                { name: "Silver Trout", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: true, summary: "Prized for its tender, flaky meat and reflective scales." },
+                { name: "Lake Glassfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true, summary: "Almost entirely transparent, making it hard to spot." },
+                { name: "Ghost Catfish", time: "Night", weather: "Any", icon: "🐡", rarity: "Uncommon", regional: true, summary: "A pale, elusive scavenger that feeds by the light of the moon." },
+                { name: "Lake Sturgeon", time: "Any", weather: "Any", icon: "🦈", rarity: "Rare", regional: true, summary: "An ancient, armored giant that prowls the deep lakebed." },
+                { name: "Whisper-ray", time: "Any", weather: "Rain", icon: "🦇", rarity: "VeryRare", regional: true, summary: "A silent glider that ripples through the water like a phantom." }
             ],
             "Sunken Coast": [
-                { name: "Saltwater Bass", time: "Day", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
-                { name: "Flounder", time: "Any", weather: "Any", icon: "🐡", rarity: "Common", regional: true },
-                { name: "Tidal Eel", time: "Any", weather: "Rain", icon: "🐍", rarity: "Uncommon", regional: true },
-                { name: "Coast Marlin", time: "Any", weather: "Clear", icon: "🦈", rarity: "Rare", regional: true },
-                { name: "Abyssal Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "VeryRare", regional: true }
+                { name: "Saltwater Bass", time: "Day", weather: "Any", icon: "🐟", rarity: "Common", regional: true, summary: "A staple coastal catch known for putting up a strong fight." },
+                { name: "Flounder", time: "Any", weather: "Any", icon: "🐡", rarity: "Common", regional: true, summary: "A master of camouflage that lies flat against the sandy floor." },
+                { name: "Tidal Eel", time: "Any", weather: "Rain", icon: "🐍", rarity: "Uncommon", regional: true, summary: "A highly aggressive eel that hunts in the churning surf." },
+                { name: "Coast Marlin", time: "Any", weather: "Clear", icon: "🦈", rarity: "Rare", regional: true, summary: "A lightning-fast predator with a spear-like bill." },
+                { name: "Abyssal Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "VeryRare", regional: true, summary: "A massive, heavily armored crustacean from the ocean trench." }
             ],
             "The Ashen Peaks": [
-                { name: "Ash-trout", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
-                { name: "Lava-snail", time: "Any", weather: "Clear", icon: "🐌", rarity: "Common", regional: true },
-                { name: "Cinder Loach", time: "Day", weather: "Any", icon: "🦎", rarity: "Uncommon", regional: true },
-                { name: "Obsidian Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "Rare", regional: true },
-                { name: "Smolder-fish", time: "Any", weather: "Rain", icon: "🔥", rarity: "VeryRare", regional: true }
+                { name: "Ash-trout", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true, summary: "Adapted to warm waters, its scales are the color of soot." },
+                { name: "Lava-snail", time: "Any", weather: "Clear", icon: "🐌", rarity: "Common", regional: true, summary: "A hardy mollusk whose shell can withstand boiling temperatures." },
+                { name: "Cinder Loach", time: "Day", weather: "Any", icon: "🦎", rarity: "Uncommon", regional: true, summary: "A tiny, heat-resistant fish that burrows in volcanic silt." },
+                { name: "Obsidian Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "Rare", regional: true, summary: "Sharp and brittle, its shell is forged from volcanic glass." },
+                { name: "Smolder-fish", time: "Any", weather: "Rain", icon: "🔥", rarity: "VeryRare", regional: true, summary: "Radiates an intense internal heat, glowing like a hot coal." }
             ],
             "Sapphire Archipelago": [
-                { name: "Parrotfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true },
-                { name: "Reef Shark", time: "Any", weather: "Any", icon: "🦈", rarity: "Common", regional: true },
-                { name: "Coral Grouper", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true },
-                { name: "Storm Marlin", time: "Any", weather: "Rain", icon: "🦈", rarity: "Rare", regional: true },
-                { name: "Azure Ray", time: "Night", weather: "Any", icon: "🦇", rarity: "VeryRare", regional: true }
+                { name: "Parrotfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true, summary: "A colorful reef-dweller with a beak designed to crush coral." },
+                { name: "Reef Shark", time: "Any", weather: "Any", icon: "🦈", rarity: "Common", regional: true, summary: "A sleek, apex predator that patrols the shallow atolls." },
+                { name: "Coral Grouper", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true, summary: "A heavy-bodied ambush hunter that mimics the reef." },
+                { name: "Storm Marlin", time: "Any", weather: "Rain", icon: "🦈", rarity: "Rare", regional: true, summary: "A legendary fighter said to ride the currents of squalls." },
+                { name: "Azure Ray", time: "Night", weather: "Any", icon: "🦇", rarity: "VeryRare", regional: true, summary: "A majestic creature whose wingspan casts a wide, blue shadow." }
             ],
             "Verdant Canopy": [
-                { name: "Leaf-fish", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
-                { name: "Vine-snake", time: "Day", weather: "Any", icon: "🐍", rarity: "Common", regional: true },
-                { name: "Canopy-catfish", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true },
-                { name: "Rainfrog", time: "Any", weather: "Rain", icon: "🐸", rarity: "Rare", regional: true },
-                { name: "Leaf-tailed Pike", time: "Night", weather: "Any", icon: "🐊", rarity: "VeryRare", regional: true }
+                { name: "Leaf-fish", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true, summary: "Perfectly evolved to mimic a piece of floating foliage." },
+                { name: "Vine-snake", time: "Day", weather: "Any", icon: "🐍", rarity: "Common", regional: true, summary: "An aquatic serpent that navigates tangled roots with ease." },
+                { name: "Canopy-catfish", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true, summary: "A dark-scaled bottom feeder thriving in shaded waters." },
+                { name: "Rainfrog", time: "Any", weather: "Rain", icon: "🐸", rarity: "Rare", regional: true, summary: "A loud, bulbous amphibian that emerges during downpours." },
+                { name: "Leaf-tailed Pike", time: "Night", weather: "Any", icon: "🐊", rarity: "VeryRare", regional: true, summary: "A ferocious ambush predator camouflaged as a submerged branch." }
             ]
         },
         legendary: [
-            { name: "The Gilded Leviathan", region: "Whispering Lakes", time: "Night", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true },
-            { name: "Tidal Behemoth", region: "Sunken Coast", time: "Any", weather: "Rain", icon: "🐋", rarity: "Legendary", regional: true },
-            { name: "Magma-Core Turtle", region: "The Ashen Peaks", time: "Any", weather: "Clear", icon: "🐢", rarity: "Legendary", regional: true },
-            { name: "Hurricane Serpent", region: "Sapphire Archipelago", time: "Any", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true },
-            { name: "Ancient Mossback", region: "Verdant Canopy", time: "Night", weather: "Any", icon: "🐊", rarity: "Legendary", regional: true }
+            { name: "The Gilded Leviathan", region: "Whispering Lakes", time: "Night", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true, summary: "An ancient, golden-scaled dragon-fish that commands the lakes." },
+            { name: "Tidal Behemoth", region: "Sunken Coast", time: "Any", weather: "Rain", icon: "🐋", rarity: "Legendary", regional: true, summary: "A mythical whale-like entity whose movements dictate the tides." },
+            { name: "Magma-Core Turtle", region: "The Ashen Peaks", time: "Any", weather: "Clear", icon: "🐢", rarity: "Legendary", regional: true, summary: "A colossal beast carrying a smoldering volcano on its back." },
+            { name: "Hurricane Serpent", region: "Sapphire Archipelago", time: "Any", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true, summary: "An elemental manifestation of the storm, wreathed in lightning." },
+            { name: "Ancient Mossback", region: "Verdant Canopy", time: "Night", weather: "Any", icon: "🐊", rarity: "Legendary", regional: true, summary: "A primordial crocodilian that has slumbered for centuries." }
         ]
     };
+
+    function getFishByName(name) {
+        let all = [...fishData.global, ...fishData.legendary];
+        for (let r in fishData.regional) all.push(...fishData.regional[r]);
+        return all.find(f => f.name === name);
+    }
 
     // State Variables
     let isAdvantage = false;
@@ -513,12 +571,26 @@
         rods: JSON.parse(JSON.stringify(defaultRods)),
         activeRodIndex: 0,
         caughtFishCount: {},
+        firstCaughtDate: {},
         portrait: "",
         streak: 0,
         log: []
     });
 
-    let appState = { profiles: { "Player 1": createNewProfileData() }, activeProfile: "Player 1" };
+    // Start with empty state to force startup modal
+    let appState = { profiles: {}, activeProfile: null };
+
+    // Initialization
+    window.onload = function() {
+        if (!appState.activeProfile || !appState.profiles[appState.activeProfile]) {
+            document.getElementById('startup-modal').style.display = 'block';
+        }
+    };
+
+    function unlockApp() {
+        document.getElementById('startup-modal').style.display = 'none';
+        document.getElementById('main-app').classList.remove('blurred');
+    }
 
     // Toggles & Dice 
     function toggleAdvantage() {
@@ -555,14 +627,18 @@
         reader.onload = function(e) {
             try { 
                 let imported = JSON.parse(e.target.result); 
-                for(let p in imported.profiles) { appState.profiles[p] = imported.profiles[p]; }
+                for(let p in imported.profiles) { 
+                    appState.profiles[p] = imported.profiles[p]; 
+                    if (!appState.profiles[p].firstCaughtDate) appState.profiles[p].firstCaughtDate = {}; // Backwards compat
+                }
                 appState.activeProfile = imported.activeProfile || Object.keys(imported.profiles)[0];
                 populateProfileDropdown(); loadProfile(); buildProfileListModal();
+                unlockApp();
             } 
             catch(err) { alert("Invalid save file."); }
         };
         reader.readAsText(file);
-        event.target.value = ''; // Reset to allow re-importing same file
+        event.target.value = '';
     }
 
     function buildProfileListModal() {
@@ -598,6 +674,16 @@
         loadProfile();
     }
 
+    function startupCreateProfile() {
+        let name = prompt("Enter new character name:");
+        if (name && !appState.profiles[name]) {
+            appState.profiles[name] = createNewProfileData();
+            appState.activeProfile = name;
+            populateProfileDropdown(); loadProfile();
+            unlockApp();
+        }
+    }
+
     function addProfile() {
         let name = prompt("Enter new character name:");
         if (name && !appState.profiles[name]) {
@@ -623,6 +709,7 @@
     function getActive() { return appState.profiles[appState.activeProfile]; }
 
     function loadProfile() {
+        if (!appState.activeProfile) return;
         const active = getActive();
         
         document.getElementById('sidebar-profile-name').innerText = appState.activeProfile;
@@ -688,6 +775,7 @@
     
     function calcSkill() {
         const active = getActive();
+        if(!active) return;
         let primary = getMod(active.stats.dex);
         let secondary = Math.floor(getMod(active.stats.str)/2) + Math.floor(getMod(active.stats.con)/2) + Math.floor(getMod(active.stats.wis)/2) + Math.floor(getMod(active.stats.cha)/2);
         let tertiary = (getMod(active.stats.int) >= 2) ? 1 : 0;
@@ -707,6 +795,8 @@
     }
 
     function updateProgression() {
+        const active = getActive();
+        if(!active) return;
         let overallCaught = 0; let overallTotal = 0; let regionBonuses = 0;
         let categories = { "Global Fish": fishData.global, "Legendary Targets": fishData.legendary };
         for(let r in fishData.regional) categories[r] = fishData.regional[r];
@@ -730,25 +820,45 @@
 
     function getDC(fish) { return rarityDCs[fish.rarity] + (fish.regional && fish.rarity !== "Legendary" ? 2 : 0); }
 
-    function manualToggleFish(fishName) {
+    function openFishDetails(fishName) {
         const active = getActive();
-        active.caughtFishCount[fishName] = active.caughtFishCount[fishName] ? 0 : 1;
-        updateProgression(); renderCollection();
+        let fish = getFishByName(fishName);
+        if (!fish) return;
+        
+        document.getElementById('fd-icon').innerText = fish.icon;
+        document.getElementById('fd-name').innerText = fish.name;
+        
+        let rEl = document.getElementById('fd-rarity');
+        rEl.innerText = fish.rarity.replace("VeryRare", "Very Rare");
+        rEl.className = `tc-${fish.rarity}`;
+        
+        let timeIcon = fish.time === "Day" ? "☀️" : (fish.time === "Night" ? "🌙" : "🌗");
+        let weatherIcon = fish.weather === "Clear" ? "☀️" : (fish.weather === "Rain" ? "🌧️" : "☁️");
+        document.getElementById('fd-time').innerHTML = `${timeIcon} ${fish.time}`;
+        document.getElementById('fd-weather').innerHTML = `${weatherIcon} ${fish.weather}`;
+        
+        document.getElementById('fd-summary').innerText = fish.summary;
+        
+        document.getElementById('fd-total').innerText = active.caughtFishCount[fish.name] || 0;
+        document.getElementById('fd-date').innerText = active.firstCaughtDate[fish.name] || "Unknown";
+        
+        document.getElementById('fish-details-modal').style.display = "block";
     }
 
     function buildCard(fish) {
         if (!document.getElementById(`filt-${fish.rarity.toLowerCase()}`).checked) return "";
 
         const count = getActive().caughtFishCount[fish.name] || 0;
-        const caughtClass = count > 0 ? "" : "uncaught";
+        const caughtClass = count > 0 ? "caught" : "uncaught";
         const rarityClass = count > 0 ? `border-${fish.rarity}` : "";
         const counterBadge = count > 1 ? `<div class="fish-count">x${count}</div>` : "";
+        const onClickAction = count > 0 ? `onclick="openFishDetails('${fish.name}')"` : "";
         
         let timeIcon = fish.time === "Day" ? "☀️" : (fish.time === "Night" ? "🌙" : "🌗");
         let weatherIcon = fish.weather === "Clear" ? "☀️" : (fish.weather === "Rain" ? "🌧️" : "☁️");
 
         return `
-            <div class="fish-card ${caughtClass} ${rarityClass}" onclick="manualToggleFish('${fish.name}')">
+            <div class="fish-card ${caughtClass} ${rarityClass}" ${onClickAction}>
                 <div class="fish-name">${fish.name}</div>
                 <div class="fish-icon">${fish.icon}</div>
                 <div class="fish-details">
@@ -763,6 +873,7 @@
     }
 
     function renderCollection() {
+        if (!appState.activeProfile) return;
         let globalHTML = ""; fishData.global.forEach(f => globalHTML += buildCard(f));
         document.getElementById('global-grid').innerHTML = globalHTML;
 
@@ -793,10 +904,12 @@
     }
 
     function getBaitWeights(bait) {
-        if (bait === "worms") return { "Common": 7000, "Uncommon": 2500, "Rare": 500, "VeryRare": 0, "Legendary": 0 };
-        if (bait === "glowbugs") return { "Common": 3000, "Uncommon": 4000, "Rare": 2500, "VeryRare": 490, "Legendary": 10 }; 
-        if (bait === "starshard") return { "Common": 1000, "Uncommon": 2000, "Rare": 3000, "VeryRare": 2500, "Legendary": 1500 }; 
-        return { "Common": 6000, "Uncommon": 2800, "Rare": 1100, "VeryRare": 99, "Legendary": 1 }; 
+        if (bait === "worms") return { "Common": 8000, "Uncommon": 1500, "Rare": 400, "VeryRare": 99, "Legendary": 1 };
+        if (bait === "minnow") return { "Common": 4000, "Uncommon": 4500, "Rare": 1200, "VeryRare": 290, "Legendary": 10 };
+        if (bait === "glowbugs") return { "Common": 2500, "Uncommon": 3000, "Rare": 4000, "VeryRare": 450, "Legendary": 50 }; 
+        if (bait === "moonsnail") return { "Common": 1500, "Uncommon": 2000, "Rare": 3000, "VeryRare": 3000, "Legendary": 500 }; 
+        if (bait === "starshard") return { "Common": 500, "Uncommon": 1500, "Rare": 2000, "VeryRare": 3000, "Legendary": 3000 }; 
+        return { "Common": 6000, "Uncommon": 2800, "Rare": 1100, "VeryRare": 99, "Legendary": 1 }; // None
     }
 
     function updateOddsData() {
@@ -824,6 +937,7 @@
         let resDiv = document.getElementById('roll-result');
         let bonus = calcSkill();
         const active = getActive();
+        if(!active) return;
         
         let roll1 = Math.floor(Math.random() * 20) + 1;
         let roll2 = Math.floor(Math.random() * 20) + 1;
@@ -883,6 +997,12 @@
 
         if (success) {
             active.caughtFishCount[hookedFish.name] = (active.caughtFishCount[hookedFish.name] || 0) + 1;
+            
+            // Record first caught date
+            if (!active.firstCaughtDate[hookedFish.name]) {
+                active.firstCaughtDate[hookedFish.name] = new Date().toLocaleDateString();
+            }
+
             active.streak += 1;
             triggerPopup(hookedFish, targetDC);
             updateProgression(); renderCollection();
@@ -1027,10 +1147,6 @@
         popup.classList.add('show');
         popupTimeout = setTimeout(() => popup.classList.remove('show'), 3500);
     }
-
-    // Init
-    populateProfileDropdown();
-    loadProfile();
 </script>
 
 </body>
