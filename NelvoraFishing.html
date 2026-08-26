@@ -1,0 +1,1037 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Fishing Minigame Tracker</title>
+    <style>
+        :root {
+            --bg-color: #232428;
+            --panel-bg: #2b2d31;
+            --indent-bg: #1e1f22;
+            --accent: #5c7e73;
+            --accent-hover: #4a665d;
+            --text-main: #dbdee1;
+            --text-muted: #949ba4;
+            --border: #111214;
+            
+            --r-common: #9e9e9e;
+            --r-uncommon: #66bb6a;
+            --r-rare: #42a5f5;
+            --r-veryrare: #ab47bc;
+            --r-legendary: #ffee58;
+        }
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color); color: var(--text-main);
+            margin: 0; height: 100vh; display: flex; overflow: hidden;
+        }
+        
+        .app-container { display: flex; width: 100vw; height: 100vh; }
+        
+        /* Left Sidebar */
+        .left-sidebar {
+            width: 290px; background-color: var(--panel-bg); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; padding: 15px; box-sizing: border-box;
+            gap: 15px; z-index: 10; box-shadow: 2px 0 10px rgba(0,0,0,0.2); overflow-y: auto;
+        }
+        .portrait-box {
+            background-color: var(--indent-bg); border: 2px dashed var(--border);
+            border-radius: 8px; height: 260px; display: flex; align-items: center;
+            justify-content: center; color: var(--text-muted); cursor: pointer;
+            background-size: cover; background-repeat: no-repeat; background-position: center top; 
+            position: relative; flex-shrink: 0; overflow: hidden; transition: border 0.2s, color 0.2s;
+        }
+        .portrait-box:not(.has-image):hover { border-color: var(--accent); color: var(--text-main); }
+        .portrait-box.has-image { border: 2px solid transparent; box-shadow: inset 0 0 15px rgba(0,0,0,0.5); }
+        
+        h2, h3, h4 { margin-top: 0; color: var(--text-main); font-weight: 600; }
+        h4 { margin-bottom: 6px; border-bottom: 1px solid var(--border); padding-bottom: 4px; font-size: 0.95em; }
+        label { font-size: 0.75em; color: var(--text-muted); margin-bottom: 2px; display: block; }
+        input, select {
+            background-color: var(--bg-color); color: var(--text-main); border: 1px solid var(--border);
+            padding: 4px 6px; border-radius: 4px; outline: none; font-family: inherit;
+            width: 100%; box-sizing: border-box; font-size: 0.9em;
+        }
+        button {
+            background-color: var(--accent); color: white; border: none; padding: 8px 12px;
+            border-radius: 4px; cursor: pointer; font-size: 0.9em; font-weight: bold; transition: background 0.2s;
+        }
+        button:hover { background-color: var(--accent-hover); }
+        .checkbox-label { display: flex; align-items: center; gap: 6px; font-size: 0.85em; cursor: pointer; }
+
+        /* Stats & Advantage Toggle */
+        .stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; align-items: end; }
+        .total-skill { text-align: center; font-size: 1.2em; color: var(--accent); font-weight: bold; background: var(--indent-bg); padding: 10px; border-radius: 6px; border: 1px solid var(--border); margin-top: 5px; }
+        
+        .adv-toggle {
+            background-color: var(--indent-bg); border: 1px solid var(--border);
+            color: var(--text-muted); border-radius: 4px; padding: 4px 0; height: 26px; box-sizing: border-box;
+            cursor: pointer; text-align: center; font-weight: bold; transition: all 0.2s;
+            user-select: none; font-size: 0.85em; display: flex; align-items: center; justify-content: center;
+        }
+        .adv-toggle.active {
+            background: linear-gradient(135deg, #ff6b6b, #feca57, #48dbfb, #ff9ff3);
+            background-size: 300% 300%; animation: prism 4s ease infinite;
+            color: #fff; border-color: rgba(255,255,255,0.5); text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+        }
+
+        /* Bonus Dice Array */
+        .dice-array { display: flex; gap: 5px; margin-top: 5px; }
+        .dice-btn { flex: 1; padding: 4px 0; font-size: 0.8em; background-color: var(--bg-color); border: 1px solid var(--border); }
+        .dice-btn:hover { background-color: var(--indent-bg); border-color: var(--accent); }
+        .dice-btn.clear { background-color: #e57373; border: none; }
+
+        /* Progression */
+        .progression-box {
+            background-color: var(--indent-bg); padding: 10px; border-radius: 6px;
+            border: 1px solid var(--border); cursor: pointer; transition: background 0.2s;
+        }
+        .progression-box:hover { background-color: #27282c; }
+        .progress-bar { 
+            width: 100%; height: 12px; background-color: var(--bg-color); 
+            border-radius: 6px; overflow: hidden; margin-bottom: 5px;
+            border: 1px solid rgba(255, 255, 255, 0.15); box-shadow: inset 0 2px 4px rgba(0,0,0,0.4);
+        }
+        .progress-fill { height: 100%; background-color: var(--accent); width: 0%; transition: width 0.3s; }
+        .progress-fill.maxed { background: linear-gradient(90deg, #42a5f5, #ab47bc, #ffee58, #42a5f5); background-size: 200% 200%; animation: flow 2s linear infinite; }
+        @keyframes flow { 0% { background-position: 0% 50%; } 100% { background-position: 200% 50%; } }
+        @keyframes prism { 0% { background-position: 0% 50%; } 50% { background-position: 100% 50%; } 100% { background-position: 0% 50%; } }
+
+        /* Right Content */
+        .right-content { flex: 1; display: flex; flex-direction: column; background-color: var(--bg-color); }
+        
+        /* Header Profile Area */
+        .top-header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 15px 30px; background-color: var(--panel-bg); border-bottom: 1px solid var(--border);
+        }
+        .profile-manager { display: flex; gap: 10px; align-items: center; background: var(--indent-bg); padding: 8px 15px; border-radius: 6px; border: 1px solid var(--border); }
+        .profile-manager select { width: 160px; font-weight: bold; }
+
+        .collection-area { flex: 1; overflow-y: auto; padding: 20px 30px; box-sizing: border-box; }
+        .filter-bar { display: flex; gap: 15px; margin-bottom: 20px; background: var(--panel-bg); padding: 10px 15px; border-radius: 6px; border: 1px solid var(--border); flex-wrap: wrap; }
+        .category-indent { background-color: var(--indent-bg); border-radius: 8px; padding: 20px; margin-bottom: 20px; box-shadow: inset 0 2px 6px rgba(0,0,0,0.3); border: 1px solid var(--border); }
+        .collection-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; }
+        
+        /* Fish Cards */
+        .fish-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px; }
+        .fish-card { 
+            background-color: var(--panel-bg); border: 2px solid var(--border); border-radius: 8px; 
+            padding: 24px 12px 12px 12px; display: flex; flex-direction: column; align-items: center; 
+            text-align: center; position: relative; cursor: pointer; transition: all 0.2s;
+        }
+        .fish-card:hover { transform: translateY(-2px); }
+        .fish-card.uncaught { filter: grayscale(100%) brightness(0.6); border-color: var(--border) !important; box-shadow: none !important; }
+        .fish-card.uncaught .fish-icon { background-color: transparent; border: 1px dashed var(--text-muted); }
+        
+        .fish-name { font-weight: bold; font-size: 0.85em; margin-bottom: 10px; line-height: 1.1; z-index: 2; }
+        .fish-icon { width: 55px; height: 55px; background-color: var(--indent-bg); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-size: 1.8em; margin-bottom: 10px; }
+        .fish-details { font-size: 0.7em; color: var(--text-muted); display: flex; flex-direction: row; justify-content: center; gap: 8px; }
+        .fish-count { position: absolute; top: -6px; left: -6px; background-color: var(--bg-color); color: white; font-size: 0.7em; padding: 2px 6px; border-radius: 10px; font-weight: bold; border: 1px solid var(--border); }
+        .fish-dc-text { position: absolute; top: 6px; right: 8px; color: var(--text-muted); font-size: 0.75em; font-weight: bold; }
+
+        /* Simulator Deck (Bottom Bar) */
+        .simulator-area {
+            background-color: var(--panel-bg); border-top: 1px solid var(--border);
+            padding: 20px 30px; box-sizing: border-box; box-shadow: 0 -4px 10px rgba(0,0,0,0.2);
+            display: flex; gap: 25px; align-items: stretch; min-height: 150px;
+        }
+        
+        /* 2x2 Grid */
+        .sim-left { flex: 1; display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: center; }
+        
+        /* Center Area */
+        .sim-center { flex: 0.8; display: flex; flex-direction: column; gap: 10px; justify-content: center; }
+        .cast-btn { background-color: var(--accent); color: white; border: none; border-radius: 8px; cursor: pointer; font-size: 1.4em; font-weight: bold; transition: background 0.2s; flex: 2; }
+        .cast-btn:hover { background-color: var(--accent-hover); }
+        .odds-button { background-color: var(--indent-bg); border: 1px solid var(--border); border-radius: 6px; padding: 6px; text-align: center; cursor: pointer; transition: all 0.2s; font-size: 0.85em; font-weight: bold; flex: 1; display: flex; align-items: center; justify-content: center; }
+        .odds-button:hover { background-color: #27282c; border-color: var(--accent); }
+        
+        /* Right Area */
+        .sim-right { flex: 1.2; display: flex; flex-direction: column; gap: 10px; }
+        
+        .log-btn { background-color: var(--indent-bg); border: 1px solid var(--border); border-radius: 6px; flex: 1; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; gap: 10px; cursor: pointer; transition: background 0.2s; }
+        .log-btn:hover { background-color: #27282c; }
+        .streak-box { background-color: var(--indent-bg); border: 1px solid var(--border); border-radius: 6px; flex: 0.4; font-size: 0.85em; font-weight: bold; display: flex; align-items: center; justify-content: center; color: var(--text-muted); }
+
+        #roll-result { 
+            flex: 2; background: var(--bg-color); border-radius: 6px; border: 1px solid var(--border); 
+            padding: 10px 15px; display: flex; flex-direction: column; justify-content: center; 
+        }
+        .roll-breakdown { display: flex; justify-content: center; gap: 15px; font-size: 0.8em; color: var(--text-muted); border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 4px; margin-bottom: 4px; }
+        .roll-total { font-size: 1.1em; font-weight: bold; text-align: center; }
+        
+        /* Modals */
+        .modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.7); backdrop-filter: blur(4px); }
+        .modal-content { background-color: var(--panel-bg); margin: 5% auto; padding: 25px; border: 1px solid var(--border); border-radius: 8px; width: 550px; max-width: 90%; color: var(--text-main); max-height: 80vh; overflow-y: auto; }
+        .close-btn { color: var(--text-muted); float: right; font-size: 28px; font-weight: bold; cursor: pointer; line-height: 0.8; }
+        .close-btn:hover { color: white; }
+        
+        .inventory-row { display: flex; justify-content: space-between; background: var(--indent-bg); padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; border: 1px solid var(--border); align-items: center; }
+        .log-row { background: var(--indent-bg); padding: 8px 12px; margin-bottom: 8px; border-radius: 4px; border: 1px solid var(--border); font-size: 0.85em; }
+        .odds-row { display: flex; justify-content: space-between; padding: 6px 10px; border-bottom: 1px solid rgba(255,255,255,0.05); font-size: 0.9em; align-items: center; }
+        .odds-row:hover { background-color: var(--indent-bg); }
+
+        .border-Common { border-color: var(--r-common) !important; }
+        .border-Uncommon { border-color: var(--r-uncommon) !important; }
+        .border-Rare { border-color: var(--r-rare) !important; }
+        .border-VeryRare { border-color: var(--r-veryrare) !important; }
+        .border-Legendary { border-color: var(--r-legendary) !important; box-shadow: 0 0 10px rgba(255, 238, 88, 0.2); }
+        .tc-Common { color: var(--r-common); } .tc-Uncommon { color: var(--r-uncommon); }
+        .tc-Rare { color: var(--r-rare); } .tc-VeryRare { color: var(--r-veryrare); } .tc-Legendary { color: var(--r-legendary); }
+
+        /* Popup */
+        #catch-popup { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%) scale(0.9); background-color: rgba(30, 31, 34, 0.95); backdrop-filter: blur(8px); padding: 30px; border-radius: 12px; border: 2px solid var(--border); text-align: center; box-shadow: 0 10px 40px rgba(0,0,0,0.8); opacity: 0; pointer-events: none; transition: all 0.3s ease; z-index: 3000; }
+        #catch-popup.show { opacity: 1; transform: translate(-50%, -50%) scale(1); }
+        .popup-icon { font-size: 4em; margin-bottom: 10px; }
+        .popup-name { font-size: 1.5em; font-weight: bold; color: white; }
+    </style>
+</head>
+<body>
+
+<div class="app-container">
+    
+    <!-- Sidebar -->
+    <div class="left-sidebar">
+        
+        <h3 id="sidebar-profile-name" style="text-align: center; margin-bottom: -10px; margin-top: 5px; color: var(--text-main);">Player 1</h3>
+        
+        <div class="portrait-box" id="portrait-preview" onclick="document.getElementById('portrait-upload').click()">
+            <span id="portrait-text">Click to add picture</span>
+            <input type="file" id="portrait-upload" accept="image/*" onchange="loadPortrait(event)" style="display: none;">
+        </div>
+
+        <div class="progression-box" onclick="openModal('progress-modal')">
+            <h4 style="display: flex; justify-content: space-between; margin-bottom: 6px;">
+                Completionist <span id="mastery-pct" style="color: var(--accent);">0%</span>
+            </h4>
+            <div class="progress-bar"><div class="progress-fill" id="mastery-fill"></div></div>
+            <div style="font-size: 0.75em; color: var(--accent); font-weight: bold;" id="mastery-buffs">Bonus: +0</div>
+        </div>
+
+        <div>
+            <h4>Attributes</h4>
+            <div class="stats-grid">
+                <div><label>STR</label><input type="number" id="str" onchange="updateStats()"></div>
+                <div><label>DEX</label><input type="number" id="dex" onchange="updateStats()"></div>
+                <div><label>CON</label><input type="number" id="con" onchange="updateStats()"></div>
+                <div><label>INT</label><input type="number" id="int" onchange="updateStats()"></div>
+                <div><label>WIS</label><input type="number" id="wis" onchange="updateStats()"></div>
+                <div><label>CHA</label><input type="number" id="cha" onchange="updateStats()"></div>
+                <div><label>Misc Mod</label><input type="number" id="misc-mod" onchange="updateStats()"></div>
+                <div>
+                    <label>Advantage</label>
+                    <div id="adv-toggle-btn" class="adv-toggle" onclick="toggleAdvantage()">OFF</div>
+                </div>
+            </div>
+            
+            <div style="margin-top: 8px;">
+                <label>Bonus Dice</label>
+                <div class="dice-array">
+                    <button class="dice-btn" onclick="addDie('d4')">d4: <span id="count-d4">0</span></button>
+                    <button class="dice-btn" onclick="addDie('d6')">d6: <span id="count-d6">0</span></button>
+                    <button class="dice-btn" onclick="addDie('d8')">d8: <span id="count-d8">0</span></button>
+                    <button class="dice-btn clear" onclick="clearDice()">Clear</button>
+                </div>
+            </div>
+
+            <div class="total-skill">
+                Fishing Skill: <span id="skill-display">+0</span>
+            </div>
+        </div>
+
+        <div>
+            <h4>Equipped Rod</h4>
+            <select id="rod-select" onchange="updateStats()"></select>
+            <button onclick="openModal('inventory-modal')" style="width: 100%; margin-top: 8px; background-color: var(--indent-bg); border: 1px solid var(--border);">🎒 Rod Inventory</button>
+        </div>
+    </div>
+
+    <!-- Right Content -->
+    <div class="right-content">
+        
+        <!-- Header with Profile Manager -->
+        <div class="top-header">
+            <h2 style="margin: 0;">Nelvora Fishing</h2>
+            <div class="profile-manager">
+                <label style="margin: 0; font-size: 0.9em; font-weight: bold; color: white;">Active Profile:</label>
+                <select id="profile-select" onchange="switchProfile()"></select>
+                <button onclick="openModal('profile-modal')">Manage Character(s)</button>
+            </div>
+        </div>
+
+        <div class="collection-area">
+            <div class="filter-bar">
+                <span style="font-size: 0.85em; color: var(--text-muted); align-self: center;">Filter:</span>
+                <label class="checkbox-label"><input type="checkbox" id="filt-common" checked onchange="renderCollection()"> <span class="tc-Common">Common</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="filt-uncommon" checked onchange="renderCollection()"> <span class="tc-Uncommon">Uncommon</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="filt-rare" checked onchange="renderCollection()"> <span class="tc-Rare">Rare</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="filt-veryrare" checked onchange="renderCollection()"> <span class="tc-VeryRare">Very Rare</span></label>
+                <label class="checkbox-label"><input type="checkbox" id="filt-legendary" checked onchange="renderCollection()"> <span class="tc-Legendary">Legendary</span></label>
+            </div>
+            
+            <div class="category-indent">
+                <div class="collection-header"><h3>Global Catch</h3></div>
+                <div id="global-grid" class="fish-grid"></div>
+            </div>
+
+            <div class="category-indent">
+                <div class="collection-header">
+                    <h3>Regional Catch</h3>
+                    <select id="collection-region" onchange="renderCollection()" style="width: 250px;">
+                        <option value="Whispering Lakes">Whispering Lakes</option>
+                        <option value="Sunken Coast">Sunken Coast</option>
+                        <option value="The Ashen Peaks">The Ashen Peaks</option>
+                        <option value="Sapphire Archipelago">Sapphire Archipelago</option>
+                        <option value="Verdant Canopy">Verdant Canopy</option>
+                    </select>
+                </div>
+                <div id="regional-grid" class="fish-grid"></div>
+            </div>
+
+            <div class="category-indent" style="background: linear-gradient(to bottom right, var(--indent-bg), rgba(255,238,88,0.05)); border-color: rgba(255,238,88,0.2);">
+                <div class="collection-header"><h3 style="color: var(--r-legendary);">Legendary Targets</h3></div>
+                <div id="legendary-grid" class="fish-grid"></div>
+            </div>
+        </div>
+
+        <!-- Simulator Deck (Bottom Bar) -->
+        <div class="simulator-area">
+            
+            <!-- Left: 2x2 Grid -->
+            <div class="sim-left">
+                <div>
+                    <label>Region</label>
+                    <select id="sim-region">
+                        <option value="Whispering Lakes">Whispering Lakes</option>
+                        <option value="Sunken Coast">Sunken Coast</option>
+                        <option value="The Ashen Peaks">The Ashen Peaks</option>
+                        <option value="Sapphire Archipelago">Sapphire Archipelago</option>
+                        <option value="Verdant Canopy">Verdant Canopy</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Bait Selection</label>
+                    <select id="sim-bait">
+                        <option value="none">No Bait</option>
+                        <option value="worms">Worms (+Com)</option>
+                        <option value="glowbugs">Glow-bugs (+Rare)</option>
+                        <option value="starshard">Star-shard (+Leg)</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Time</label>
+                    <select id="sim-time">
+                        <option value="Any">Any Time</option>
+                        <option value="Day">Day</option>
+                        <option value="Night">Night</option>
+                    </select>
+                </div>
+                <div>
+                    <label>Weather</label>
+                    <select id="sim-weather">
+                        <option value="Any">Any Weather</option>
+                        <option value="Clear">Clear</option>
+                        <option value="Rain">Rain</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- Center: Core Actions -->
+            <div class="sim-center">
+                <button class="cast-btn" onclick="castLine()">CAST LINE</button>
+                <div class="odds-button" onclick="openModal('odds-modal')">📊 View Bite Odds</div>
+            </div>
+            
+            <!-- Right: Log & Roll Info -->
+            <div class="sim-right">
+                
+                <div style="display: flex; gap: 10px;">
+                    <div class="log-btn" onclick="openModal('log-modal')">📜 Fishing Log</div>
+                    <div class="streak-box">Streak: <span id="streak-counter" style="color: var(--accent); margin-left: 5px;">0</span></div>
+                </div>
+                
+                <div id="roll-result">
+                    <div style="color: var(--text-muted); text-align: center; margin: auto;">Ready to cast. Set your conditions.</div>
+                </div>
+                
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modals -->
+<div id="profile-modal" class="modal">
+    <div class="modal-content" style="width: 450px;">
+        <span class="close-btn" onclick="closeModal('profile-modal')">&times;</span>
+        <h3>Manage Character(s)</h3>
+        <div style="display:flex; flex-direction:column; gap:10px; margin-top: 15px;">
+            <button onclick="addProfile()">+ Create Character</button>
+            <button onclick="document.getElementById('import-upload').click()" style="background:#66bb6a;">Import Save (.json)</button>
+            <input type="file" id="import-upload" accept=".json" onchange="importSave(event)" style="display: none;">
+            <hr style="border-color: var(--border); width: 100%; margin: 10px 0;">
+            <h4 style="border:none; margin-bottom: 0;">Your Characters</h4>
+            <div id="profile-list-container" style="display:flex; flex-direction:column; gap:8px;">
+                <!-- Profile List Populated By JS -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="progress-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('progress-modal')">&times;</span>
+        <h3>Detailed Mastery Progression</h3>
+        <p style="font-size: 0.85em; color: var(--text-muted); margin-top: -10px;">Every 20% overall completion grants +1. Fully completing a category below grants an additional +1.</p>
+        <div id="modal-bars"></div>
+    </div>
+</div>
+
+<div id="odds-modal" class="modal">
+    <div class="modal-content" style="width: 450px;">
+        <span class="close-btn" onclick="closeModal('odds-modal')">&times;</span>
+        <h3>Current Catch Breakdown</h3>
+        <div id="modal-odds-list"></div>
+    </div>
+</div>
+
+<div id="inventory-modal" class="modal">
+    <div class="modal-content" style="width: 450px;">
+        <span class="close-btn" onclick="closeModal('inventory-modal')">&times;</span>
+        <h3>Rod Inventory</h3>
+        <div id="modal-inventory-list" style="margin-bottom: 20px;"></div>
+        <h4 style="border-top: 1px solid var(--border); padding-top: 15px;">Add New Rod</h4>
+        <div style="display: flex; gap: 10px;">
+            <input type="text" id="inv-new-name" placeholder="Rod Name" style="flex: 2;">
+            <input type="number" id="inv-new-bonus" value="0" style="flex: 1;">
+            <button onclick="addInventoryRod()">Add Rod</button>
+        </div>
+    </div>
+</div>
+
+<div id="log-modal" class="modal">
+    <div class="modal-content">
+        <span class="close-btn" onclick="closeModal('log-modal')">&times;</span>
+        <h3>Fishing Log</h3>
+        <select id="log-filter" onchange="renderLog()" style="margin-bottom: 15px;">
+            <option value="All">All Regions</option>
+            <option value="Whispering Lakes">Whispering Lakes</option>
+            <option value="Sunken Coast">Sunken Coast</option>
+            <option value="The Ashen Peaks">The Ashen Peaks</option>
+            <option value="Sapphire Archipelago">Sapphire Archipelago</option>
+            <option value="Verdant Canopy">Verdant Canopy</option>
+        </select>
+        <div id="modal-log-list" style="max-height: 400px; overflow-y: auto;"></div>
+    </div>
+</div>
+
+<div id="catch-popup">
+    <div class="popup-icon" id="popup-icon">🐟</div>
+    <div style="color: var(--accent); font-size: 0.9em; margin-bottom: 5px;">You reeled in a</div>
+    <div class="popup-name" id="popup-name">Fish Name</div>
+    <div style="font-size: 0.8em; color: var(--text-muted); margin-top: 5px;" id="popup-dc">Beat DC 15</div>
+</div>
+
+<script>
+    // System Data & Config
+    const rarityDCs = { "Common": 12, "Uncommon": 15, "Rare": 19, "VeryRare": 24, "Legendary": 28 };
+    const defaultRods = [
+        { name: "Old Branch", bonus: 0 }, { name: "Sturdy Pine Rod", bonus: 1 }, 
+        { name: "Fiberglass", bonus: 2 }, { name: "Masterwork Rod", bonus: 3 }
+    ];
+
+    const fishData = {
+        global: [
+            { name: "Common Carp", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false },
+            { name: "River Loach", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: false },
+            { name: "Minnow", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: false },
+            { name: "Bitterling", time: "Any", weather: "Rain", icon: "🐠", rarity: "Common", regional: false },
+            { name: "Sunfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Uncommon", regional: false },
+            { name: "Mudskipper", time: "Any", weather: "Rain", icon: "🦎", rarity: "Uncommon", regional: false },
+            { name: "Crayfish", time: "Night", weather: "Any", icon: "🦐", rarity: "Uncommon", regional: false },
+            { name: "Golden Shiner", time: "Day", weather: "Any", icon: "🐟", rarity: "Rare", regional: false },
+            { name: "Speckled Dace", time: "Any", weather: "Clear", icon: "🐠", rarity: "Rare", regional: false },
+            { name: "Brook Char", time: "Any", weather: "Any", icon: "🐡", rarity: "Rare", regional: false },
+            { name: "Moonlight Eel", time: "Night", weather: "Any", icon: "🐍", rarity: "VeryRare", regional: false },
+            { name: "Starlight Koi", time: "Night", weather: "Any", icon: "✨", rarity: "VeryRare", regional: false }
+        ],
+        regional: {
+            "Whispering Lakes": [
+                { name: "Silver Trout", time: "Any", weather: "Clear", icon: "🐟", rarity: "Common", regional: true },
+                { name: "Lake Glassfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true },
+                { name: "Ghost Catfish", time: "Night", weather: "Any", icon: "🐡", rarity: "Uncommon", regional: true },
+                { name: "Lake Sturgeon", time: "Any", weather: "Any", icon: "🦈", rarity: "Rare", regional: true },
+                { name: "Whisper-ray", time: "Any", weather: "Rain", icon: "🦇", rarity: "VeryRare", regional: true }
+            ],
+            "Sunken Coast": [
+                { name: "Saltwater Bass", time: "Day", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
+                { name: "Flounder", time: "Any", weather: "Any", icon: "🐡", rarity: "Common", regional: true },
+                { name: "Tidal Eel", time: "Any", weather: "Rain", icon: "🐍", rarity: "Uncommon", regional: true },
+                { name: "Coast Marlin", time: "Any", weather: "Clear", icon: "🦈", rarity: "Rare", regional: true },
+                { name: "Abyssal Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "VeryRare", regional: true }
+            ],
+            "The Ashen Peaks": [
+                { name: "Ash-trout", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
+                { name: "Lava-snail", time: "Any", weather: "Clear", icon: "🐌", rarity: "Common", regional: true },
+                { name: "Cinder Loach", time: "Day", weather: "Any", icon: "🦎", rarity: "Uncommon", regional: true },
+                { name: "Obsidian Crab", time: "Night", weather: "Any", icon: "🦀", rarity: "Rare", regional: true },
+                { name: "Smolder-fish", time: "Any", weather: "Rain", icon: "🔥", rarity: "VeryRare", regional: true }
+            ],
+            "Sapphire Archipelago": [
+                { name: "Parrotfish", time: "Day", weather: "Any", icon: "🐠", rarity: "Common", regional: true },
+                { name: "Reef Shark", time: "Any", weather: "Any", icon: "🦈", rarity: "Common", regional: true },
+                { name: "Coral Grouper", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true },
+                { name: "Storm Marlin", time: "Any", weather: "Rain", icon: "🦈", rarity: "Rare", regional: true },
+                { name: "Azure Ray", time: "Night", weather: "Any", icon: "🦇", rarity: "VeryRare", regional: true }
+            ],
+            "Verdant Canopy": [
+                { name: "Leaf-fish", time: "Any", weather: "Any", icon: "🐟", rarity: "Common", regional: true },
+                { name: "Vine-snake", time: "Day", weather: "Any", icon: "🐍", rarity: "Common", regional: true },
+                { name: "Canopy-catfish", time: "Any", weather: "Clear", icon: "🐡", rarity: "Uncommon", regional: true },
+                { name: "Rainfrog", time: "Any", weather: "Rain", icon: "🐸", rarity: "Rare", regional: true },
+                { name: "Leaf-tailed Pike", time: "Night", weather: "Any", icon: "🐊", rarity: "VeryRare", regional: true }
+            ]
+        },
+        legendary: [
+            { name: "The Gilded Leviathan", region: "Whispering Lakes", time: "Night", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true },
+            { name: "Tidal Behemoth", region: "Sunken Coast", time: "Any", weather: "Rain", icon: "🐋", rarity: "Legendary", regional: true },
+            { name: "Magma-Core Turtle", region: "The Ashen Peaks", time: "Any", weather: "Clear", icon: "🐢", rarity: "Legendary", regional: true },
+            { name: "Hurricane Serpent", region: "Sapphire Archipelago", time: "Any", weather: "Rain", icon: "🐉", rarity: "Legendary", regional: true },
+            { name: "Ancient Mossback", region: "Verdant Canopy", time: "Night", weather: "Any", icon: "🐊", rarity: "Legendary", regional: true }
+        ]
+    };
+
+    // State Variables
+    let isAdvantage = false;
+    let bonusDice = { d4: 0, d6: 0, d8: 0 };
+    let currentMasteryBonus = 0;
+    let popupTimeout;
+
+    const createNewProfileData = () => ({
+        stats: { str:10, dex:10, con:10, int:10, wis:10, cha:10, misc:0 },
+        rods: JSON.parse(JSON.stringify(defaultRods)),
+        activeRodIndex: 0,
+        caughtFishCount: {},
+        portrait: "",
+        streak: 0,
+        log: []
+    });
+
+    let appState = { profiles: { "Player 1": createNewProfileData() }, activeProfile: "Player 1" };
+
+    // Toggles & Dice 
+    function toggleAdvantage() {
+        isAdvantage = !isAdvantage;
+        const btn = document.getElementById('adv-toggle-btn');
+        btn.classList.toggle('active', isAdvantage);
+        btn.innerText = isAdvantage ? "ON" : "OFF";
+    }
+
+    function addDie(type) {
+        bonusDice[type]++;
+        document.getElementById('count-'+type).innerText = bonusDice[type];
+    }
+    
+    function clearDice() {
+        bonusDice = { d4: 0, d6: 0, d8: 0 };
+        ['d4','d6','d8'].forEach(d => document.getElementById('count-'+d).innerText = '0');
+    }
+
+    // Save & Load
+    function exportSingleProfile(name) {
+        let exportData = { profiles: {}, activeProfile: name };
+        exportData.profiles[name] = appState.profiles[name];
+        const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(exportData));
+        const dlAnchor = document.createElement('a');
+        dlAnchor.setAttribute("href", dataStr); dlAnchor.setAttribute("download", `fishing_tracker_${name.replace(/\s+/g, '_')}.json`);
+        dlAnchor.click();
+    }
+    
+    function importSave(event) {
+        const file = event.target.files[0];
+        if (!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try { 
+                let imported = JSON.parse(e.target.result); 
+                for(let p in imported.profiles) { appState.profiles[p] = imported.profiles[p]; }
+                appState.activeProfile = imported.activeProfile || Object.keys(imported.profiles)[0];
+                populateProfileDropdown(); loadProfile(); buildProfileListModal();
+            } 
+            catch(err) { alert("Invalid save file."); }
+        };
+        reader.readAsText(file);
+        event.target.value = ''; // Reset to allow re-importing same file
+    }
+
+    function buildProfileListModal() {
+        let html = "";
+        for(let p in appState.profiles) {
+            let isActive = p === appState.activeProfile;
+            let activeLabel = isActive ? `<span style="color:var(--accent); font-size:0.8em; margin-left:5px;">(Active)</span>` : "";
+            html += `
+                <div style="display: flex; justify-content: space-between; align-items: center; background: var(--indent-bg); padding: 8px 12px; border-radius: 4px; border: 1px solid var(--border);">
+                    <strong style="color: var(--text-main);">${p} ${activeLabel}</strong>
+                    <div style="display: flex; gap: 5px;">
+                        <button onclick="exportSingleProfile('${p}')" style="background:#42a5f5; padding: 4px 8px; font-size: 0.8em;">Export</button>
+                        <button onclick="deleteProfileConfirm('${p}')" style="background:#e57373; padding: 4px 8px; font-size: 0.8em;">Delete</button>
+                    </div>
+                </div>
+            `;
+        }
+        document.getElementById('profile-list-container').innerHTML = html;
+    }
+
+    function populateProfileDropdown() {
+        const select = document.getElementById('profile-select');
+        select.innerHTML = "";
+        for (let p in appState.profiles) {
+            let opt = document.createElement('option');
+            opt.value = p; opt.text = p; select.add(opt);
+        }
+        select.value = appState.activeProfile;
+    }
+
+    function switchProfile() {
+        appState.activeProfile = document.getElementById('profile-select').value;
+        loadProfile();
+    }
+
+    function addProfile() {
+        let name = prompt("Enter new character name:");
+        if (name && !appState.profiles[name]) {
+            appState.profiles[name] = createNewProfileData();
+            appState.activeProfile = name;
+            populateProfileDropdown(); loadProfile();
+            if (document.getElementById('profile-modal').style.display === "block") buildProfileListModal();
+        }
+    }
+
+    function deleteProfileConfirm(name) {
+        if (Object.keys(appState.profiles).length <= 1) return alert("Cannot delete your only character.");
+        let confirmation = prompt(`Type "DELETE" to confirm deletion of character: ${name}`);
+        if (confirmation === "DELETE") {
+            delete appState.profiles[name];
+            if (appState.activeProfile === name) appState.activeProfile = Object.keys(appState.profiles)[0];
+            populateProfileDropdown(); loadProfile(); buildProfileListModal();
+        } else if (confirmation !== null) {
+            alert("Deletion cancelled. You must type DELETE exactly.");
+        }
+    }
+
+    function getActive() { return appState.profiles[appState.activeProfile]; }
+
+    function loadProfile() {
+        const active = getActive();
+        
+        document.getElementById('sidebar-profile-name').innerText = appState.activeProfile;
+        
+        const pBox = document.getElementById('portrait-preview');
+        const pText = document.getElementById('portrait-text');
+        
+        if (active.portrait) { 
+            pBox.style.backgroundImage = `url(${active.portrait})`; 
+            pText.style.display = 'none'; 
+            pBox.classList.add('has-image');
+        } else { 
+            pBox.style.backgroundImage = 'none'; 
+            pText.style.display = 'block'; 
+            pBox.classList.remove('has-image');
+        }
+
+        for (let stat in active.stats) {
+            let el = document.getElementById(stat === "misc" ? "misc-mod" : stat);
+            if(el) el.value = active.stats[stat];
+        }
+
+        refreshRodDropdown();
+        document.getElementById('streak-counter').innerText = active.streak;
+        updateProgression();
+        renderCollection();
+    }
+
+    function loadPortrait(event) {
+        const file = event.target.files[0];
+        if(!file) return;
+        const reader = new FileReader();
+        reader.onload = function(e){ getActive().portrait = e.target.result; loadProfile(); };
+        reader.readAsDataURL(file);
+    }
+
+    function refreshRodDropdown() {
+        const active = getActive();
+        const select = document.getElementById('rod-select');
+        select.innerHTML = "";
+        active.rods.forEach((r, idx) => {
+            let opt = document.createElement('option');
+            opt.value = idx; opt.text = `${r.name} (+${r.bonus})`; select.add(opt);
+        });
+        select.value = active.activeRodIndex;
+        calcSkill();
+    }
+
+    function updateStats() {
+        const active = getActive();
+        active.stats.str = parseInt(document.getElementById('str').value) || 0;
+        active.stats.dex = parseInt(document.getElementById('dex').value) || 0;
+        active.stats.con = parseInt(document.getElementById('con').value) || 0;
+        active.stats.int = parseInt(document.getElementById('int').value) || 0;
+        active.stats.wis = parseInt(document.getElementById('wis').value) || 0;
+        active.stats.cha = parseInt(document.getElementById('cha').value) || 0;
+        active.stats.misc = parseInt(document.getElementById('misc-mod').value) || 0;
+        active.activeRodIndex = parseInt(document.getElementById('rod-select').value) || 0;
+        calcSkill();
+    }
+
+    function getMod(score) { return Math.floor((score - 10) / 2); }
+    
+    function calcSkill() {
+        const active = getActive();
+        let primary = getMod(active.stats.dex);
+        let secondary = Math.floor(getMod(active.stats.str)/2) + Math.floor(getMod(active.stats.con)/2) + Math.floor(getMod(active.stats.wis)/2) + Math.floor(getMod(active.stats.cha)/2);
+        let tertiary = (getMod(active.stats.int) >= 2) ? 1 : 0;
+        
+        let rodBonus = active.rods[active.activeRodIndex]?.bonus || 0;
+        let total = primary + secondary + tertiary + rodBonus + active.stats.misc + currentMasteryBonus;
+        document.getElementById('skill-display').innerText = total >= 0 ? "+" + total : total;
+        return total;
+    }
+
+    // Progression & Collection
+    function getCategoryProgress(categoryArray) {
+        const counts = getActive().caughtFishCount;
+        let caught = 0;
+        categoryArray.forEach(f => { if(counts[f.name] > 0) caught++; });
+        return { caught: caught, total: categoryArray.length, pct: categoryArray.length > 0 ? Math.floor((caught/categoryArray.length)*100) : 0 };
+    }
+
+    function updateProgression() {
+        let overallCaught = 0; let overallTotal = 0; let regionBonuses = 0;
+        let categories = { "Global Fish": fishData.global, "Legendary Targets": fishData.legendary };
+        for(let r in fishData.regional) categories[r] = fishData.regional[r];
+
+        for(let cat in categories) {
+            let prog = getCategoryProgress(categories[cat]);
+            overallCaught += prog.caught; overallTotal += prog.total;
+            if (prog.pct === 100) regionBonuses += 1;
+        }
+
+        let overallPct = Math.floor((overallCaught / overallTotal) * 100);
+        let fill = document.getElementById('mastery-fill');
+        fill.style.width = overallPct + "%";
+        if(overallPct === 100) { fill.classList.add('maxed'); } else { fill.classList.remove('maxed'); }
+        document.getElementById('mastery-pct').innerText = overallPct + "%";
+        
+        currentMasteryBonus = Math.floor(overallPct / 20) + regionBonuses;
+        document.getElementById('mastery-buffs').innerHTML = `Bonus: +${currentMasteryBonus}`;
+        calcSkill();
+    }
+
+    function getDC(fish) { return rarityDCs[fish.rarity] + (fish.regional && fish.rarity !== "Legendary" ? 2 : 0); }
+
+    function manualToggleFish(fishName) {
+        const active = getActive();
+        active.caughtFishCount[fishName] = active.caughtFishCount[fishName] ? 0 : 1;
+        updateProgression(); renderCollection();
+    }
+
+    function buildCard(fish) {
+        if (!document.getElementById(`filt-${fish.rarity.toLowerCase()}`).checked) return "";
+
+        const count = getActive().caughtFishCount[fish.name] || 0;
+        const caughtClass = count > 0 ? "" : "uncaught";
+        const rarityClass = count > 0 ? `border-${fish.rarity}` : "";
+        const counterBadge = count > 1 ? `<div class="fish-count">x${count}</div>` : "";
+        
+        let timeIcon = fish.time === "Day" ? "☀️" : (fish.time === "Night" ? "🌙" : "🌗");
+        let weatherIcon = fish.weather === "Clear" ? "☀️" : (fish.weather === "Rain" ? "🌧️" : "☁️");
+
+        return `
+            <div class="fish-card ${caughtClass} ${rarityClass}" onclick="manualToggleFish('${fish.name}')">
+                <div class="fish-name">${fish.name}</div>
+                <div class="fish-icon">${fish.icon}</div>
+                <div class="fish-details">
+                    <span title="Time">${timeIcon} ${fish.time}</span>
+                    <span style="color: var(--border);">|</span>
+                    <span title="Weather">${weatherIcon} ${fish.weather}</span>
+                </div>
+                ${counterBadge}
+                <div class="fish-dc-text">DC ${getDC(fish)}</div>
+            </div>
+        `;
+    }
+
+    function renderCollection() {
+        let globalHTML = ""; fishData.global.forEach(f => globalHTML += buildCard(f));
+        document.getElementById('global-grid').innerHTML = globalHTML;
+
+        const activeRegion = document.getElementById('collection-region').value;
+        let regHTML = ""; (fishData.regional[activeRegion] || []).forEach(f => regHTML += buildCard(f));
+        document.getElementById('regional-grid').innerHTML = regHTML;
+
+        let legHTML = ""; fishData.legendary.forEach(f => {
+            const locDetails = { ...f, time: `${f.time} (${f.region})` };
+            legHTML += buildCard(locDetails);
+        });
+        document.getElementById('legendary-grid').innerHTML = legHTML;
+    }
+
+    // Simulator Logic
+    function checkConditions(fish, simTime, simWeather) {
+        let timeMatch = fish.time === "Any" || simTime === "Any" || fish.time === simTime;
+        let weatherMatch = fish.weather === "Any" || simWeather === "Any" || fish.weather === simWeather;
+        return timeMatch && weatherMatch;
+    }
+
+    function getValidFish(region, time, weather) {
+        let valid = { "Common": [], "Uncommon": [], "Rare": [], "VeryRare": [], "Legendary": [] };
+        fishData.global.forEach(f => { if(checkConditions(f, time, weather)) valid[f.rarity].push(f); });
+        (fishData.regional[region] || []).forEach(f => { if(checkConditions(f, time, weather)) valid[f.rarity].push(f); });
+        fishData.legendary.forEach(f => { if(f.region === region && checkConditions(f, time, weather)) valid[f.rarity].push(f); });
+        return valid;
+    }
+
+    function getBaitWeights(bait) {
+        if (bait === "worms") return { "Common": 7000, "Uncommon": 2500, "Rare": 500, "VeryRare": 0, "Legendary": 0 };
+        if (bait === "glowbugs") return { "Common": 3000, "Uncommon": 4000, "Rare": 2500, "VeryRare": 490, "Legendary": 10 }; 
+        if (bait === "starshard") return { "Common": 1000, "Uncommon": 2000, "Rare": 3000, "VeryRare": 2500, "Legendary": 1500 }; 
+        return { "Common": 6000, "Uncommon": 2800, "Rare": 1100, "VeryRare": 99, "Legendary": 1 }; 
+    }
+
+    function updateOddsData() {
+        let region = document.getElementById('sim-region').value;
+        let time = document.getElementById('sim-time').value;
+        let weather = document.getElementById('sim-weather').value;
+        let bait = document.getElementById('sim-bait').value;
+
+        let validFish = getValidFish(region, time, weather);
+        let weights = getBaitWeights(bait);
+
+        let activeTotalWeight = 0;
+        let activeWeights = { "Common": 0, "Uncommon": 0, "Rare": 0, "VeryRare": 0, "Legendary": 0 };
+        
+        for (let rarity in weights) {
+            if (validFish[rarity].length > 0) {
+                activeWeights[rarity] = weights[rarity];
+                activeTotalWeight += weights[rarity];
+            }
+        }
+        return { validFish, activeWeights, activeTotalWeight, region };
+    }
+
+    function castLine() {
+        let resDiv = document.getElementById('roll-result');
+        let bonus = calcSkill();
+        const active = getActive();
+        
+        let roll1 = Math.floor(Math.random() * 20) + 1;
+        let roll2 = Math.floor(Math.random() * 20) + 1;
+        let finalBaseRoll = isAdvantage ? Math.max(roll1, roll2) : roll1;
+        
+        let diceRolls = [];
+        let diceTotal = 0;
+        for(let d in bonusDice) {
+            for(let i=0; i<bonusDice[d]; i++) {
+                let r = Math.floor(Math.random() * parseInt(d.substring(1))) + 1;
+                diceTotal += r;
+                diceRolls.push(`${d}(${r})`);
+            }
+        }
+        
+        let total = finalBaseRoll + bonus + diceTotal;
+
+        let oddsData = updateOddsData();
+        if (oddsData.activeTotalWeight === 0) {
+            resDiv.innerHTML = `<div style="text-align:center; color: #e57373;">Not a single bite. Adjust conditions.</div>`;
+            return;
+        }
+
+        let rand = Math.random() * oddsData.activeTotalWeight;
+        let hookedRarity = null; let cumulative = 0;
+        for (let rarity in oddsData.activeWeights) {
+            cumulative += oddsData.activeWeights[rarity];
+            if (rand <= cumulative && oddsData.activeWeights[rarity] > 0) { hookedRarity = rarity; break; }
+        }
+
+        let pool = oddsData.validFish[hookedRarity];
+        let hookedFish = pool[Math.floor(Math.random() * pool.length)];
+        let targetDC = getDC(hookedFish);
+
+        let rollDisplay = isAdvantage ? `[${roll1}, ${roll2}] ➔ ${finalBaseRoll}` : `${finalBaseRoll}`;
+        let diceString = diceRolls.length > 0 ? ` + [${diceRolls.join(', ')}]` : ``;
+
+        let success = total >= targetDC;
+        let color = success ? "#8bc34a" : "#e57373";
+        let statusText = success ? `(Caught! Beat DC ${targetDC})` : `(Failed vs DC ${targetDC})`;
+
+        resDiv.innerHTML = `
+            <div class="roll-breakdown">
+                <span>Roll: ${rollDisplay}${diceString}</span>
+                <span>Mods: +${bonus}</span>
+            </div>
+            <div class="roll-total" style="color: ${color};">
+                Total: ${total} <span style="font-size: 0.8em; font-weight: normal;">${statusText}</span>
+            </div>
+        `;
+
+        let logEntry = { 
+            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}),
+            region: oddsData.region, fish: hookedFish.name, icon: hookedFish.icon, rarity: hookedFish.rarity,
+            roll: total, dc: targetDC, success: success 
+        };
+
+        if (success) {
+            active.caughtFishCount[hookedFish.name] = (active.caughtFishCount[hookedFish.name] || 0) + 1;
+            active.streak += 1;
+            triggerPopup(hookedFish, targetDC);
+            updateProgression(); renderCollection();
+        } else {
+            active.streak = 0;
+        }
+        
+        document.getElementById('streak-counter').innerText = active.streak;
+        active.log.unshift(logEntry);
+    }
+
+    // Modals
+    function openModal(id) { 
+        if(id === 'progress-modal') buildProgressModal();
+        if(id === 'odds-modal') buildOddsModal();
+        if(id === 'inventory-modal') buildInventoryModal();
+        if(id === 'log-modal') renderLog();
+        if(id === 'profile-modal') buildProfileListModal();
+        document.getElementById(id).style.display = "block"; 
+    }
+    function closeModal(id) { document.getElementById(id).style.display = "none"; }
+    window.onclick = function(event) { if (event.target.classList.contains('modal')) event.target.style.display = "none"; }
+
+    function buildProgressModal() {
+        let html = "";
+        let categories = { "Global Fish": fishData.global };
+        for(let r in fishData.regional) categories[r] = fishData.regional[r];
+        categories["Legendary Targets"] = fishData.legendary;
+
+        for(let cat in categories) {
+            let prog = getCategoryProgress(categories[cat]);
+            let color = prog.pct === 100 ? "var(--r-legendary)" : "var(--accent)";
+            let extraClass = prog.pct === 100 ? "maxed" : "";
+            html += `
+                <div class="modal-category">
+                    <h5><span>${cat}</span> <span>${prog.caught}/${prog.total} (${prog.pct}%)</span></h5>
+                    <div class="progress-bar"><div class="progress-fill ${extraClass}" style="width: ${prog.pct}%; background-color: ${color};"></div></div>
+                </div>
+            `;
+        }
+        document.getElementById('modal-bars').innerHTML = html;
+    }
+
+    function buildOddsModal() {
+        let oddsData = updateOddsData();
+        let html = "";
+        if (oddsData.activeTotalWeight === 0) {
+            html = `<div style="text-align: center; color: var(--text-muted); padding: 20px;">No fish available in these conditions.</div>`;
+        } else {
+            for (let rarity in oddsData.activeWeights) {
+                if(oddsData.validFish[rarity].length === 0) continue;
+                let rarityPct = (oddsData.activeWeights[rarity] / oddsData.activeTotalWeight) * 100;
+                let fishPct = (rarityPct / oddsData.validFish[rarity].length).toFixed(2);
+                
+                html += `<h4 class="tc-${rarity}" style="margin-top: 15px; border-bottom: 1px solid var(--border);">${rarity.replace("VeryRare", "Very Rare")} Pool (${rarityPct.toFixed(2)}%)</h4>`;
+                oddsData.validFish[rarity].forEach(f => {
+                    html += `<div class="odds-row"><span>${f.icon} ${f.name}</span><span>${fishPct}% chance</span></div>`;
+                });
+            }
+        }
+        document.getElementById('modal-odds-list').innerHTML = html;
+    }
+
+    function buildInventoryModal() {
+        const active = getActive();
+        let html = "";
+        active.rods.forEach((r, idx) => {
+            let delBtn = idx >= defaultRods.length ? `<button onclick="deleteRod(${idx})" style="background:#e57373; padding:2px 6px;">Delete</button>` : `<span style="font-size:0.7em; color:var(--text-muted);">Default</span>`;
+            html += `
+                <div class="inventory-row">
+                    <div><strong>${r.name}</strong> <span style="color:var(--accent);">+${r.bonus}</span></div>
+                    <div>${delBtn}</div>
+                </div>
+            `;
+        });
+        document.getElementById('modal-inventory-list').innerHTML = html;
+    }
+
+    function addInventoryRod() {
+        let name = document.getElementById('inv-new-name').value;
+        let bonus = parseInt(document.getElementById('inv-new-bonus').value) || 0;
+        if(name.trim() !== "") {
+            getActive().rods.push({ name: name, bonus: bonus });
+            document.getElementById('inv-new-name').value = ""; document.getElementById('inv-new-bonus').value = 0;
+            refreshRodDropdown(); buildInventoryModal();
+        }
+    }
+
+    function deleteRod(idx) {
+        const active = getActive();
+        if(active.activeRodIndex === idx) active.activeRodIndex = 0;
+        else if (active.activeRodIndex > idx) active.activeRodIndex--;
+        active.rods.splice(idx, 1);
+        refreshRodDropdown(); buildInventoryModal();
+    }
+
+    function renderLog() {
+        const active = getActive();
+        const filter = document.getElementById('log-filter').value;
+        let html = "";
+        let filteredLog = active.log.filter(l => filter === "All" || l.region === filter);
+        
+        if (filteredLog.length === 0) {
+            html = `<div style="text-align:center; padding: 20px; color: var(--text-muted);">No logs found for this region.</div>`;
+        } else {
+            filteredLog.forEach(l => {
+                let color = l.success ? "#8bc34a" : "#e57373";
+                let status = l.success ? `Caught (DC ${l.dc})` : `Lost (DC ${l.dc})`;
+                html += `
+                    <div class="log-row">
+                        <div style="display:flex; justify-content:space-between; margin-bottom:4px;">
+                            <span style="color:var(--text-muted); font-size:0.9em;">${l.time} - ${l.region}</span>
+                            <span style="color:${color}; font-weight:bold;">Roll: ${l.roll}</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between;">
+                            <strong class="tc-${l.rarity}">${l.icon} ${l.fish}</strong>
+                            <span style="color:${color};">${status}</span>
+                        </div>
+                    </div>
+                `;
+            });
+        }
+        document.getElementById('modal-log-list').innerHTML = html;
+    }
+
+    function triggerPopup(fish, dc) {
+        clearTimeout(popupTimeout);
+        const popup = document.getElementById('catch-popup');
+        document.getElementById('popup-icon').innerText = fish.icon;
+        document.getElementById('popup-name').innerText = fish.name;
+        document.getElementById('popup-dc').innerText = `Beat DC ${dc}`;
+        
+        if(fish.rarity === "Legendary") {
+            popup.style.boxShadow = "0 0 40px rgba(255, 238, 88, 0.4)";
+            popup.style.borderColor = "rgba(255, 238, 88, 0.8)";
+            popup.style.background = "linear-gradient(135deg, rgba(30,31,34,0.95), rgba(255,238,88,0.2))";
+        } else {
+            popup.style.boxShadow = "0 10px 40px rgba(0,0,0,0.8)";
+            popup.style.borderColor = "var(--border)";
+            popup.style.background = "rgba(30, 31, 34, 0.95)";
+        }
+        popup.classList.add('show');
+        popupTimeout = setTimeout(() => popup.classList.remove('show'), 3500);
+    }
+
+    // Init
+    populateProfileDropdown();
+    loadProfile();
+</script>
+
+</body>
+</html>
